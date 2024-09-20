@@ -14,10 +14,8 @@ export default function ComingSoon() {
     const apiUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL;
     const apiKey = process.env.NEXT_PUBLIC_APPSYNC_API_KEY;
 
-    // Check if environment variables are defined
     if (!apiUrl || !apiKey) {
-        console.error("AppSync API URL or API Key is not defined");
-        throw new Error("AppSync API URL or API Key is not defined in the environment variables");
+        throw new Error("AppSync API URL or API Key is missing. Please check environment variables.");
     }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +117,7 @@ export default function ComingSoon() {
         setTimeout(() => {
             setFormData({ name: '', surname: '', email: '' });
             setMessage(null); // Clear the success message
-        }, 3000);
+        }, 5000);
     };
 
     return (
