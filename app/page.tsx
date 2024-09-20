@@ -10,10 +10,20 @@ export default function ComingSoon() {
     });
     const [message, setMessage] = useState<string | null>(null);
 
+    // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
+
+    // Check if the AppSync API URL and API key are set
+    const apiUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL;
+    const apiKey = process.env.NEXT_PUBLIC_APPSYNC_API_KEY;
+
+    if (!apiUrl || !apiKey) {
+        console.error("AppSync API URL or API Key is not defined");
+        throw new Error("AppSync API URL or API Key is not defined in the environment variables");
+    }
 
     // Check if email exists in the database
     const checkIfEmailExists = async (email: string) => {
@@ -25,20 +35,25 @@ export default function ComingSoon() {
             }
         `;
 
-        const response = await fetch(process.env.NEXT_PUBLIC_APPSYNC_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': process.env.NEXT_PUBLIC_APPSYNC_API_KEY,
-            },
-            body: JSON.stringify({
-                query: query,
-                variables: { CustomerID: email },
-            }),
-        });
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                },
+                body: JSON.stringify({
+                    query: query,
+                    variables: { CustomerID: email },
+                }),
+            });
 
-        const result = await response.json();
-        return result.data?.getNotifymedb ? true : false; // Return true if email exists, false otherwise
+            const result = await response.json();
+            return result.data?.getNotifymedb ? true : false; // Return true if email exists, false otherwise
+        } catch (error) {
+            console.error("Error checking email:", error);
+            return false; // Fail gracefully if there’s an error
+        }
     };
 
     // Create a new entry in DynamoDB via AppSync
@@ -62,11 +77,11 @@ export default function ComingSoon() {
         };
 
         try {
-            const response = await fetch(process.env.NEXT_PUBLIC_APPSYNC_API_URL, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': process.env.NEXT_PUBLIC_APPSYNC_API_KEY,
+                    'x-api-key': apiKey,
                 },
                 body: JSON.stringify({
                     query: mutation,
@@ -92,6 +107,7 @@ export default function ComingSoon() {
         }
     };
 
+    // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -108,7 +124,7 @@ export default function ComingSoon() {
         setTimeout(() => {
             setFormData({ name: '', surname: '', email: '' });
             setMessage(null); // Clear the success message
-        }, 5000);
+        }, 3000);
     };
 
     return (
