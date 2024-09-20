@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from "@aws-sdk/client-secrets-manager";
 
 export default function ComingSoon() {
     const [formData, setFormData] = useState({
@@ -9,14 +13,38 @@ export default function ComingSoon() {
         email: ''
     });
     const [message, setMessage] = useState<string | null>(null);
+    const [apiUrl, setApiUrl] = useState<string | null>(null);
+    const [apiKey, setApiKey] = useState<string | null>(null);
 
-    // Retrieve environment variables
-    const apiUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL;
-    const apiKey = process.env.NEXT_PUBLIC_APPSYNC_API_KEY;
+    // Function to retrieve secrets from AWS Secrets Manager
+    const fetchSecrets = async () => {
+        const secretArn = "arn:aws:secretsmanager:eu-west-1:211125736899:secret:AppSyncScrects-3kR208";
+        const client = new SecretsManagerClient({ region: "eu-west-1" });
 
-    if (!apiUrl || !apiKey) {
-        throw new Error("AppSync API URL or API Key is missing. Please check environment variables.");
-    }
+        try {
+            const response = await client.send(
+                new GetSecretValueCommand({
+                    SecretId: secretArn,
+                    VersionStage: "AWSCURRENT", // VersionStage defaults to AWSCURRENT if unspecified
+                })
+            );
+            
+            // Parse the secret string
+            const secrets = JSON.parse(response.SecretString || '{}');
+
+            // Set API URL and API Key from the retrieved secrets
+            setApiUrl(secrets.NEXT_PUBLIC_APPSYNC_API_URL);
+            setApiKey(secrets.NEXT_PUBLIC_APPSYNC_API_KEY);
+
+        } catch (error) {
+            console.error("Error retrieving secrets:", error);
+        }
+    };
+
+    // Use effect to fetch secrets on component mount
+    useEffect(() => {
+        fetchSecrets();
+    }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -33,11 +61,11 @@ export default function ComingSoon() {
         `;
 
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(apiUrl!, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
+                    'x-api-key': apiKey!,
                 },
                 body: JSON.stringify({
                     query: query,
@@ -73,11 +101,11 @@ export default function ComingSoon() {
         };
 
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(apiUrl!, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
+                    'x-api-key': apiKey!,
                 },
                 body: JSON.stringify({
                     query: mutation,
@@ -105,6 +133,11 @@ export default function ComingSoon() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!apiUrl || !apiKey) {
+            setMessage("API configuration is missing.");
+            return;
+        }
 
         const emailExists = await checkIfEmailExists(formData.email);
 
