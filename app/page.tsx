@@ -15,6 +15,7 @@ export default function ComingSoon() {
     const [message, setMessage] = useState<string | null>(null);
     const [apiUrl, setApiUrl] = useState<string | null>(null);
     const [apiKey, setApiKey] = useState<string | null>(null);
+    const [loadingSecrets, setLoadingSecrets] = useState(true); // Add a loading state for secrets
 
     // Function to retrieve secrets from AWS Secrets Manager
     const fetchSecrets = async () => {
@@ -25,7 +26,7 @@ export default function ComingSoon() {
             const response = await client.send(
                 new GetSecretValueCommand({
                     SecretId: secretArn,
-                    VersionStage: "AWSCURRENT", // VersionStage defaults to AWSCURRENT if unspecified
+                    VersionStage: "AWSCURRENT",
                 })
             );
             
@@ -38,6 +39,8 @@ export default function ComingSoon() {
 
         } catch (error) {
             console.error("Error retrieving secrets:", error);
+        } finally {
+            setLoadingSecrets(false); // Secrets loading complete
         }
     };
 
@@ -52,6 +55,11 @@ export default function ComingSoon() {
     };
 
     const checkIfEmailExists = async (email: string) => {
+        if (!apiUrl || !apiKey) {
+            setMessage("API configuration is missing.");
+            return false; // Fail gracefully if secrets are not available
+        }
+
         const query = `
             query GetNotifymedb($CustomerID: String!) {
                 getNotifymedb(CustomerID: $CustomerID) {
@@ -61,11 +69,11 @@ export default function ComingSoon() {
         `;
 
         try {
-            const response = await fetch(apiUrl!, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': apiKey!,
+                    'x-api-key': apiKey,
                 },
                 body: JSON.stringify({
                     query: query,
@@ -74,14 +82,19 @@ export default function ComingSoon() {
             });
 
             const result = await response.json();
-            return result.data?.getNotifymedb ? true : false; // Return true if email exists, false otherwise
+            return result.data?.getNotifymedb ? true : false;
         } catch (error) {
             console.error("Error checking email:", error);
-            return false; // Fail gracefully if there’s an error
+            return false;
         }
     };
 
     const createNotifymedb = async (formData: { name: string; surname: string; email: string }) => {
+        if (!apiUrl || !apiKey) {
+            setMessage("API configuration is missing.");
+            return null;
+        }
+
         const mutation = `
             mutation CreateNotifymedb($input: CreateNotifymedbInput!) {
                 createNotifymedb(input: $input) {
@@ -101,11 +114,11 @@ export default function ComingSoon() {
         };
 
         try {
-            const response = await fetch(apiUrl!, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': apiKey!,
+                    'x-api-key': apiKey,
                 },
                 body: JSON.stringify({
                     query: mutation,
@@ -149,9 +162,13 @@ export default function ComingSoon() {
 
         setTimeout(() => {
             setFormData({ name: '', surname: '', email: '' });
-            setMessage(null); // Clear the success message
+            setMessage(null);
         }, 5000);
     };
+
+    if (loadingSecrets) {
+        return <div>Loading...</div>; // Render a loading message until secrets are fetched
+    }
 
     return (
         <div className="flex items-center justify-center h-screen bg-black">
