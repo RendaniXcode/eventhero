@@ -10,7 +10,6 @@ export default function ComingSoon() {
     });
     const [message, setMessage] = useState<string | null>(null);
 
-    // Handle input changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
@@ -93,7 +92,6 @@ export default function ComingSoon() {
         }
     };
 
-    // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
