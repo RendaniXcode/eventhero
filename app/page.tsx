@@ -10,22 +10,21 @@ export default function ComingSoon() {
     });
     const [message, setMessage] = useState<string | null>(null);
 
-    // Handle input changes
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
-    };
-
-    // Check if the AppSync API URL and API key are set
+    // Retrieve environment variables
     const apiUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL;
     const apiKey = process.env.NEXT_PUBLIC_APPSYNC_API_KEY;
 
+    // Check if environment variables are defined
     if (!apiUrl || !apiKey) {
         console.error("AppSync API URL or API Key is not defined");
         throw new Error("AppSync API URL or API Key is not defined in the environment variables");
     }
 
-    // Check if email exists in the database
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    };
+
     const checkIfEmailExists = async (email: string) => {
         const query = `
             query GetNotifymedb($CustomerID: String!) {
@@ -56,7 +55,6 @@ export default function ComingSoon() {
         }
     };
 
-    // Create a new entry in DynamoDB via AppSync
     const createNotifymedb = async (formData: { name: string; surname: string; email: string }) => {
         const mutation = `
             mutation CreateNotifymedb($input: CreateNotifymedbInput!) {
@@ -107,11 +105,9 @@ export default function ComingSoon() {
         }
     };
 
-    // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Check if email already exists
         const emailExists = await checkIfEmailExists(formData.email);
 
         if (emailExists) {
@@ -120,7 +116,6 @@ export default function ComingSoon() {
             await createNotifymedb(formData);
         }
 
-        // Clear the form after 5 seconds
         setTimeout(() => {
             setFormData({ name: '', surname: '', email: '' });
             setMessage(null); // Clear the success message
@@ -140,7 +135,6 @@ export default function ComingSoon() {
                 <h2 className="text-white text-3xl mt-6">Coming Soon</h2>
                 <p className="text-white mt-2">Your gateway to unforgettable events is almost here.</p>
 
-                {/* Display success or error message */}
                 {message && (
                     <p className="text-red-500 mt-4 text-sm italic">{message}</p>
                 )}
