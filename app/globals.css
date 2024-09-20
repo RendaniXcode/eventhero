@@ -31,3 +31,9 @@ body {
     text-wrap: balance;
   }
 }
+/* In your global CSS file (like globals.css) */
+.logo-image {
+  width: auto; /* Or set a fixed width */
+  height: auto; /* Or set a fixed height */
+  max-width: 100%; /* This ensures responsiveness */
+}

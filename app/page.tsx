@@ -1,21 +1,181 @@
-import Image from 'next/image';
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white text-center px-4">
-      <Image src="/logo.png" alt="EventHero Logo" width={150} height={150} className="mb-8" />
-      <h1 className="text-4xl md:text-6xl font-bold mb-4">Coming Soon</h1>
-      <p className="text-lg md:text-2xl mb-8">Your gateway to unforgettable events is almost here.</p>
-      <div className="flex flex-col md:flex-row items-center justify-center">
-        <input
-          type="email"
-          placeholder="Enter your email to stay updated"
-          className="px-4 py-2 rounded-md text-black mb-4 md:mb-0 md:mr-4"
-        />
-        <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">
-          Notify Me
-        </button>
-      </div>
-    </div>
-  );
+import { useState } from 'react';
+
+export default function ComingSoon() {
+    const [formData, setFormData] = useState({
+        name: '',
+        surname: '',
+        email: ''
+    });
+    const [message, setMessage] = useState<string | null>(null);
+
+    // Handle input changes
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    };
+
+    // Check if email exists in the database
+    const checkIfEmailExists = async (email: string) => {
+        const query = `
+            query GetNotifymedb($CustomerID: String!) {
+                getNotifymedb(CustomerID: $CustomerID) {
+                    CustomerID
+                }
+            }
+        `;
+
+        const response = await fetch(process.env.NEXT_PUBLIC_APPSYNC_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.NEXT_PUBLIC_APPSYNC_API_KEY,
+            },
+            body: JSON.stringify({
+                query: query,
+                variables: { CustomerID: email },
+            }),
+        });
+
+        const result = await response.json();
+        return result.data?.getNotifymedb ? true : false; // Return true if email exists, false otherwise
+    };
+
+    // Create a new entry in DynamoDB via AppSync
+    const createNotifymedb = async (formData: { name: string; surname: string; email: string }) => {
+        const mutation = `
+            mutation CreateNotifymedb($input: CreateNotifymedbInput!) {
+                createNotifymedb(input: $input) {
+                    CustomerID
+                    Name
+                    Surname
+                    Email
+                }
+            }
+        `;
+
+        const input = {
+            CustomerID: formData.email,
+            Name: formData.name,
+            Surname: formData.surname,
+            Email: formData.email,
+        };
+
+        try {
+            const response = await fetch(process.env.NEXT_PUBLIC_APPSYNC_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.NEXT_PUBLIC_APPSYNC_API_KEY,
+                },
+                body: JSON.stringify({
+                    query: mutation,
+                    variables: { input },
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.errors) {
+                console.error('Error:', result.errors);
+                setMessage("Something went wrong. Please try again.");
+                return null;
+            }
+
+            setMessage("Thank you, we will notify you prior to the launch!");
+            console.log('Success:', result.data);
+            return result.data;
+        } catch (error) {
+            console.error('Error creating record:', error);
+            setMessage("Something went wrong. Please try again.");
+            return null;
+        }
+    };
+
+    // Handle form submission
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Check if email already exists
+        const emailExists = await checkIfEmailExists(formData.email);
+
+        if (emailExists) {
+            setMessage("This email is already being used. We will notify you prior to the launch. Thank you!");
+        } else {
+            await createNotifymedb(formData);
+        }
+
+        // Clear the form after 5 seconds
+        setTimeout(() => {
+            setFormData({ name: '', surname: '', email: '' });
+            setMessage(null); // Clear the success message
+        }, 5000);
+    };
+
+    return (
+        <div className="flex items-center justify-center h-screen bg-black">
+            <div className="text-center">
+                <img
+                    src="/logo.png"
+                    alt="EventHero Logo"
+                    className="mx-auto mb-6"
+                    style={{ width: '150px' }}
+                />
+
+                <h2 className="text-white text-3xl mt-6">Coming Soon</h2>
+                <p className="text-white mt-2">Your gateway to unforgettable events is almost here.</p>
+
+                {/* Display success or error message */}
+                {message && (
+                    <p className="text-red-500 mt-4 text-sm italic">{message}</p>
+                )}
+
+                <form onSubmit={handleSubmit} className="mt-4">
+                    <div className="mb-4">
+                        <input
+                            type="text"
+                            name="name"
+                            placeholder="Enter your name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            className="border p-2 m-2 rounded-md w-64 text-white bg-black"
+                            required
+                        />
+                    </div>
+
+                    <div className="mb-4">
+                        <input
+                            type="text"
+                            name="surname"
+                            placeholder="Enter your surname"
+                            value={formData.surname}
+                            onChange={handleInputChange}
+                            className="border p-2 m-2 rounded-md w-64 text-white bg-black"
+                            required
+                        />
+                    </div>
+
+                    <div className="mb-4">
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Enter your email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className="border p-2 m-2 rounded-md w-64 text-white bg-black"
+                            required
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="bg-red-500 text-white p-2 m-2 rounded-md w-64"
+                    >
+                        Notify Me
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
 }
